@@ -31,6 +31,10 @@ button{cursor:pointer;border:0;border-radius:9px;padding:13px 16px;font-weight:b
 .product-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .product-fields label{font-size:12px;color:#bbb}
 .product-fields input{padding:10px}
+.tipo-estoque{border:1px solid #333;border-radius:8px;padding:8px;min-width:0}
+.tipo-estoque label{font-size:11px;text-align:center}
+.tipo-estoque input{width:100%;min-width:0;text-align:center}
+.campo-entrada h4,.campo-final h4{color:var(--blue);font-size:13px;margin:12px 0 8px}
 .hint{color:var(--muted);font-size:13px;line-height:1.5}
 .badge{display:inline-block;padding:5px 8px;border-radius:6px;font-size:12px;font-weight:bold;margin-top:9px}
 .urgent{background:#4b1114;color:#ff777d}
@@ -43,7 +47,7 @@ button{cursor:pointer;border:0;border-radius:9px;padding:13px 16px;font-weight:b
 .notice{padding:12px;border:1px solid #555;border-radius:9px;margin:10px 0;line-height:1.5}
 .hidden{display:none!important}
 footer{text-align:center;color:#777;font-size:12px;padding:20px}
-@media(max-width:520px){.grid{grid-template-columns:1fr}.product-fields{gap:5px}.product-fields input{padding:9px 5px}.product-fields label{font-size:11px}main{padding:10px}}
+@media(max-width:520px){.grid{grid-template-columns:1fr}.product-fields{gap:5px}.tipo-estoque{padding:5px}.product-fields input{padding:9px 5px}.product-fields label{font-size:11px}main{padding:10px}}
 </style>
 </head>
 <body>
@@ -87,7 +91,7 @@ footer{text-align:center;color:#777;font-size:12px;padding:20px}
 </select>
 </div>
 <div id="avisoEtapa" class="notice">Registre a quantidade de cada produto no início do turno e salve a contagem inicial.</div>
-<p class="hint">Estoque urgente: zero. Estoque baixo: de 1 a 9. Estoque OK: 10 ou mais. Cada campo representa unidades contadas; ajuste a contagem para usar a mesma unidade em todas as etapas.</p>
+<p class="hint">Estoque urgente: zero. Estoque baixo: de 1 a 9. Estoque OK: 10 ou mais. Informe separadamente as quantidades fechadas, abertas e avulsas.</p>
 </section>
 
 <section class="panel">
@@ -106,9 +110,9 @@ footer{text-align:center;color:#777;font-size:12px;padding:20px}
 <div><span class="yellow">Estoque baixo</span><strong id="nBaixo">0</strong></div>
 <div><span class="green">Estoque OK</span><strong id="nOk">0</strong></div>
 </div>
-<p class="hint">A classificação considera a quantidade total informada para cada produto.</p>
+<p class="hint">A classificação considera a soma das quantidades fechadas, abertas e avulsas informadas para cada produto.</p>
 <button id="botaoSalvar" class="primary" style="margin-top:18px" onclick="salvarOuFinalizar()">SALVAR CONTAGEM INICIAL</button>
-<p class="hint">Na contagem final, informe também as entradas recebidas durante o turno. O relatório de saída será calculado a partir das contagens e entradas registradas.</p>
+<p class="hint">Na contagem final, informe também as entradas recebidas durante o turno, separando fechadas, abertas e avulsas. O relatório de saída será calculado a partir das contagens e entradas registradas.</p>
 </section>
 </main>
 <footer>ADEGA VIVA LA VIDA 24H • Controle de estoque</footer>
@@ -133,168 +137,429 @@ const categorias = {
 
 const area=document.getElementById("produtos");
 let contador=0;
+
 for(const [categoria,lista] of Object.entries(categorias)){
 const h=document.createElement("h3");
-h.className="category-title";h.textContent=categoria;area.appendChild(h);
+h.className="category-title";
+h.textContent=categoria;
+area.appendChild(h);
+
 lista.forEach(nome=>{
 const id="p"+(++contador);
 const card=document.createElement("div");
 card.className="product";
 card.dataset.nome=nome.toLocaleLowerCase("pt-BR");
 card.dataset.categoria=categoria;
-card.dataset.id=id;card.dataset.produto=nome;
+card.dataset.id=id;
+card.dataset.produto=nome;
+
+function campo(tipo,rotulo,sufixo){
+return `
+<div class="tipo-estoque">
+<label for="${id}${sufixo}${tipo}">${rotulo}</label>
+<input id="${id}${sufixo}${tipo}" type="number" min="0" step="1" value="0" oninput="atualizarResumo()">
+</div>`;
+}
+
+function grupoCampos(sufixo){
+return `
+<div class="product-fields">
+${campo("F","Fechada",sufixo)}
+${campo("A","Aberta",sufixo)}
+${campo("V","Avulsa",sufixo)}
+</div>`;
+}
+
 card.innerHTML=`
 <div class="product-name">${nome}</div>
-<div class="product-fields">
-<div class="campo-inicial"><label for="${id}i">Quantidade</label><input id="${id}i" type="number" min="0" step="1" value="0" oninput="atualizarResumo()"></div>
-<div class="campo-entrada hidden"><label for="${id}e">Entradas</label><input id="${id}e" type="number" min="0" step="1" value="0" oninput="atualizarResumo()"></div>
-<div class="campo-final hidden"><label for="${id}f">Estoque final</label><input id="${id}f" type="number" min="0" step="1" value="0" oninput="atualizarResumo()"></div>
+
+<div class="campo-inicial">
+${grupoCampos("i")}
 </div>
+
+<div class="campo-entrada hidden">
+<h4>Entradas recebidas</h4>
+${grupoCampos("e")}
+</div>
+
+<div class="campo-final hidden">
+<h4>Estoque final</h4>
+${grupoCampos("f")}
+</div>
+
 <div class="badge">Total: <span class="total">0</span></div>`;
+
 area.appendChild(card);
 });
 }
 
-function cards(){return [...document.querySelectorAll(".product")]}
-function el(card,suf){return document.getElementById(card.dataset.id+suf)}
-function valor(card,suf){return Math.max(0,Math.floor(Number(el(card,suf)?.value)||0))}
-function status(q){return q===0?"urgente":q<10?"baixo":"ok"}
+function cards(){
+return [...document.querySelectorAll(".product")];
+}
+
+function el(card,suf,tipo){
+return document.getElementById(card.dataset.id+suf+tipo);
+}
+
+function valor(card,suf,tipo){
+return Math.max(0,Math.floor(Number(el(card,suf,tipo)?.value)||0));
+}
+
+function totalProduto(card,suf){
+return valor(card,suf,"F")+valor(card,suf,"A")+valor(card,suf,"V");
+}
+
+function status(q){
+return q===0?"urgente":q<10?"baixo":"ok";
+}
+
 function atualizarResumo(){
 let urgente=0,baixo=0,ok=0;
+
 cards().forEach(card=>{
 const etapa=document.getElementById("etapa").value;
-const q=etapa==="inicio"?valor(card,"i"):valor(card,"f");
+const sufixo=etapa==="inicio"?"i":"f";
+const q=totalProduto(card,sufixo);
+
 card.querySelector(".total").textContent=q;
-const s=status(q),badge=card.querySelector(".badge");
+
+const s=status(q);
+const badge=card.querySelector(".badge");
+
 badge.className="badge "+(s==="urgente"?"urgent":s==="baixo"?"low":"ok");
 badge.firstChild.textContent=(s==="urgente"?"Reposição urgente":s==="baixo"?"Estoque baixo":"Estoque OK")+" • Total: ";
-if(s==="urgente")urgente++;else if(s==="baixo")baixo++;else ok++;
+
+if(s==="urgente")urgente++;
+else if(s==="baixo")baixo++;
+else ok++;
 });
+
 document.getElementById("nUrgente").textContent=urgente;
 document.getElementById("nBaixo").textContent=baixo;
 document.getElementById("nOk").textContent=ok;
 }
+
 function filtrarProdutos(){
 const termo=document.getElementById("busca").value.trim().toLocaleLowerCase("pt-BR");
-cards().forEach(card=>card.style.display=card.dataset.nome.includes(termo)?"":"none");
+
+cards().forEach(card=>{
+card.style.display=card.dataset.nome.includes(termo)?"":"none";
+});
+
 document.querySelectorAll(".category-title").forEach(h=>{
 let next=h.nextElementSibling,tem=false;
+
 while(next&&!next.classList.contains("category-title")){
 if(next.classList.contains("product")&&next.style.display!=="none")tem=true;
 next=next.nextElementSibling;
 }
+
 h.style.display=tem?"":"none";
 });
 }
+
 function chave(){
 return "vld24_"+document.getElementById("loja").value+"_"+document.getElementById("turno").value+"_"+dataLocal();
 }
+
 function dataLocal(){
 const d=new Date();
 return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
+
 function mudarEtapa(){
 const final=document.getElementById("etapa").value==="final";
+
 document.querySelectorAll(".campo-inicial").forEach(x=>x.classList.toggle("hidden",final));
 document.querySelectorAll(".campo-entrada,.campo-final").forEach(x=>x.classList.toggle("hidden",!final));
+
 document.getElementById("botaoSalvar").textContent=final?"FINALIZAR TURNO E BAIXAR PDF":"SALVAR CONTAGEM INICIAL";
+
 document.getElementById("avisoEtapa").textContent=final
-?"Informe o estoque final e as entradas recebidas durante o turno. A saída calculada será estoque inicial + entradas − estoque final."
-:"Registre a quantidade de cada produto no início do turno e salve a contagem inicial.";
+?"Informe o estoque final e as entradas recebidas durante o turno, separando fechadas, abertas e avulsas. A saída calculada será estoque inicial + entradas − estoque final."
+:"Registre a quantidade fechada, aberta e avulsa de cada produto no início do turno e salve a contagem inicial.";
+
 if(final)carregarInicial();
 atualizarResumo();
 }
+
 function carregarInicial(){
 if(!document.getElementById("loja").value||!document.getElementById("turno").value)return;
+
 const dados=localStorage.getItem(chave());
-if(!dados){alert("Não encontramos uma contagem inicial salva para esta loja, turno e data. Faça primeiro a contagem inicial.");document.getElementById("etapa").value="inicio";mudarEtapa();return}
-const obj=JSON.parse(dados);
-cards().forEach(card=>{
-const q=obj[card.dataset.id];
-if(q!==undefined)el(card,"i").value=q;
-});
+
+if(!dados){
+alert("Não encontramos uma contagem inicial salva para esta loja, turno e data. Faça primeiro a contagem inicial.");
+document.getElementById("etapa").value="inicio";
+mudarEtapa();
+return;
 }
+
+const obj=JSON.parse(dados);
+
+cards().forEach(card=>{
+const registro=obj[card.dataset.id];
+
+if(registro!==undefined){
+if(typeof registro==="object"&&registro!==null){
+el(card,"i","F").value=registro.fechada||0;
+el(card,"i","A").value=registro.aberta||0;
+el(card,"i","V").value=registro.avulsa||0;
+}else{
+el(card,"i","F").value=registro;
+el(card,"i","A").value=0;
+el(card,"i","V").value=0;
+}
+}
+});
+
+atualizarResumo();
+}
+
 function validarIdentificacao(){
 const loja=document.getElementById("loja").value;
 const turno=document.getElementById("turno").value;
 const colaborador=document.getElementById("colaborador").value.trim();
-if(!loja||!turno||!colaborador){alert("Preencha loja, turno e nome do colaborador.");return false}
+
+if(!loja||!turno||!colaborador){
+alert("Preencha loja, turno e nome do colaborador.");
+return false;
+}
+
 return true;
 }
+
 function salvarOuFinalizar(){
 if(!validarIdentificacao())return;
-if(!window.jspdf||!window.jspdf.jsPDF){alert("Não foi possível carregar o gerador de PDF. Verifique sua conexão.");return}
+
+if(!window.jspdf||!window.jspdf.jsPDF){
+alert("Não foi possível carregar o gerador de PDF. Verifique sua conexão.");
+return;
+}
+
 const etapa=document.getElementById("etapa").value;
+
 if(etapa==="inicio"){
 const obj={};
-cards().forEach(card=>obj[card.dataset.id]=valor(card,"i"));
+
+cards().forEach(card=>{
+obj[card.dataset.id]={
+fechada:valor(card,"i","F"),
+aberta:valor(card,"i","A"),
+avulsa:valor(card,"i","V")
+};
+});
+
 localStorage.setItem(chave(),JSON.stringify(obj));
+
 alert("Contagem inicial salva neste navegador! Na troca de turno, selecione Final do turno e informe o estoque final.");
 return;
 }
+
 const inicial=localStorage.getItem(chave());
-if(!inicial){alert("Não existe contagem inicial salva para esta loja, turno e data. Faça primeiro a contagem inicial.");return}
+
+if(!inicial){
+alert("Não existe contagem inicial salva para esta loja, turno e data. Faça primeiro a contagem inicial.");
+return;
+}
+
 const estoqueInicial=JSON.parse(inicial);
-const linhasEstoque=[],linhasVendas=[];
+const linhasEstoque=[];
+const linhasVendas=[];
+
 cards().forEach(card=>{
 const id=card.dataset.id;
-const ini=Number(estoqueInicial[id]||0),entradas=valor(card,"e"),fim=valor(card,"f");
-const saida=ini+entradas-fim;
-const linha=[card.dataset.categoria,card.dataset.produto,String(fim)];
-const st=status(fim);
-linhasEstoque.push({status:st,linha});
-if(saida>0)linhasVendas.push([card.dataset.categoria,card.dataset.produto,String(saida)]);
-if(saida<0)linhasVendas.push([card.dataset.categoria,card.dataset.produto,"Diferença: "+saida+" (conferir)"]);
+const registro=estoqueInicial[id]||{};
+
+const iniF=typeof registro==="object"?(Number(registro.fechada)||0):Number(registro||0);
+const iniA=typeof registro==="object"?(Number(registro.aberta)||0):0;
+const iniV=typeof registro==="object"?(Number(registro.avulsa)||0):0;
+
+const entF=valor(card,"e","F");
+const entA=valor(card,"e","A");
+const entV=valor(card,"e","V");
+
+const fimF=valor(card,"f","F");
+const fimA=valor(card,"f","A");
+const fimV=valor(card,"f","V");
+
+const totalFinal=fimF+fimA+fimV;
+const st=status(totalFinal);
+
+linhasEstoque.push({
+status:st,
+linha:[
+card.dataset.categoria,
+card.dataset.produto,
+String(fimF),
+String(fimA),
+String(fimV),
+String(totalFinal)
+]
 });
+
+const saidas=[
+{tipo:"Fechada",q:iniF+entF-fimF},
+{tipo:"Aberta",q:iniA+entA-fimA},
+{tipo:"Avulsa",q:iniV+entV-fimV}
+];
+
+saidas.forEach(item=>{
+if(item.q!==0){
+linhasVendas.push([
+card.dataset.categoria,
+card.dataset.produto,
+item.tipo,
+item.q<0?"Diferença: "+item.q+" (conferir)":String(item.q)
+]);
+}
+});
+});
+
 const {jsPDF}=window.jspdf;
 const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
-const loja=document.getElementById("loja").value,turno=document.getElementById("turno").value;
+
+const loja=document.getElementById("loja").value;
+const turno=document.getElementById("turno").value;
 const colaborador=document.getElementById("colaborador").value.trim();
 const data=new Date();
+
 const dataTexto=data.toLocaleDateString("pt-BR")+" às "+data.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-doc.setFillColor(8,8,8);doc.rect(0,0,210,297,"F");
-doc.setTextColor(255,210,31);doc.setFont("helvetica","bold");doc.setFontSize(20);
+
+doc.setFillColor(8,8,8);
+doc.rect(0,0,210,297,"F");
+doc.setTextColor(255,210,31);
+doc.setFont("helvetica","bold");
+doc.setFontSize(20);
 doc.text("ADEGA VIVA LA VIDA 24H",105,15,{align:"center"});
-doc.setTextColor(255,255,255);doc.setFontSize(10);
+
+doc.setTextColor(255,255,255);
+doc.setFontSize(10);
 doc.text("RELATÓRIO DE ESTOQUE — FINAL DO TURNO",105,22,{align:"center"});
 doc.setFont("helvetica","normal");
-doc.text("Loja: "+loja,14,31);doc.text("Turno: "+turno,14,37);
-doc.text("Colaborador: "+colaborador,14,43);doc.text("Data: "+dataTexto,14,49);
+doc.text("Loja: "+loja,14,31);
+doc.text("Turno: "+turno,14,37);
+doc.text("Colaborador: "+colaborador,14,43);
+doc.text("Data: "+dataTexto,14,49);
+
 let y=57;
+
 const grupos=[
 {nome:"1. REPOSIÇÃO URGENTE",status:"urgente"},
 {nome:"2. ESTOQUE BAIXO",status:"baixo"},
 {nome:"3. ESTOQUE OK",status:"ok"}
 ];
+
 grupos.forEach(g=>{
-if(y>260){doc.addPage();doc.setFillColor(8,8,8);doc.rect(0,0,210,297,"F");y=15}
-doc.setTextColor(255,210,31);doc.setFont("helvetica","bold");doc.setFontSize(12);
-doc.text(g.nome,14,y);y+=3;
+if(y>260){
+doc.addPage();
+doc.setFillColor(8,8,8);
+doc.rect(0,0,210,297,"F");
+y=15;
+}
+
+doc.setTextColor(255,210,31);
+doc.setFont("helvetica","bold");
+doc.setFontSize(12);
+doc.text(g.nome,14,y);
+y+=3;
+
 const rows=linhasEstoque.filter(x=>x.status===g.status).map(x=>x.linha);
-doc.autoTable({startY:y,head:[["Categoria","Produto","Estoque final"]],
-body:rows.length?rows:[["—","Nenhum produto","—"]],theme:"grid",margin:{left:14,right:14},
-styles:{font:"helvetica",fontSize:7,cellPadding:1.8,textColor:[245,245,245],fillColor:[20,20,20],lineColor:[80,80,80],lineWidth:.15},
-headStyles:{fillColor:[50,20,20],textColor:[255,210,31],fontStyle:"bold"},
-columnStyles:{0:{cellWidth:50},1:{cellWidth:100},2:{cellWidth:30}}});
+
+doc.autoTable({
+startY:y,
+head:[["Categoria","Produto","Fechada","Aberta","Avulsa","Total"]],
+body:rows.length?rows:[["—","Nenhum produto","—","—","—","—"]],
+theme:"grid",
+margin:{left:8,right:8},
+styles:{
+font:"helvetica",
+fontSize:6,
+cellPadding:1.5,
+textColor:[245,245,245],
+fillColor:[20,20,20],
+lineColor:[80,80,80],
+lineWidth:.15
+},
+headStyles:{
+fillColor:[50,20,20],
+textColor:[255,210,31],
+fontStyle:"bold"
+},
+columnStyles:{
+0:{cellWidth:38},
+1:{cellWidth:76},
+2:{cellWidth:21},
+3:{cellWidth:21},
+4:{cellWidth:21},
+5:{cellWidth:17}
+}
+});
+
 y=doc.lastAutoTable.finalY+8;
 });
-if(y>250){doc.addPage();doc.setFillColor(8,8,8);doc.rect(0,0,210,297,"F");y=15}
-doc.setTextColor(22,207,255);doc.setFont("helvetica","bold");doc.setFontSize(13);
-doc.text("4. RELATÓRIO DE SAÍDAS ESTIMADAS DO TURNO",14,y);y+=4;
-doc.setTextColor(255,255,255);doc.setFont("helvetica","normal");doc.setFontSize(8);
-doc.text("Cálculo: estoque inicial + entradas − estoque final. Saídas não confirmam vendas reais.",14,y+2);y+=6;
-doc.autoTable({startY:y,head:[["Categoria","Produto","Saída calculada"]],
-body:linhasVendas.length?linhasVendas:[["—","Nenhuma saída positiva identificada","0"]],
-theme:"grid",margin:{left:14,right:14},
-styles:{font:"helvetica",fontSize:7,cellPadding:1.8,textColor:[245,245,245],fillColor:[20,20,20],lineColor:[80,80,80],lineWidth:.15},
-headStyles:{fillColor:[10,45,60],textColor:[22,207,255],fontStyle:"bold"},
-columnStyles:{0:{cellWidth:50},1:{cellWidth:100},2:{cellWidth:30}}});
+
+if(y>250){
+doc.addPage();
+doc.setFillColor(8,8,8);
+doc.rect(0,0,210,297,"F");
+y=15;
+}
+
+doc.setTextColor(22,207,255);
+doc.setFont("helvetica","bold");
+doc.setFontSize(13);
+doc.text("4. RELATÓRIO DE SAÍDAS ESTIMADAS DO TURNO",14,y);
+y+=4;
+
+doc.setTextColor(255,255,255);
+doc.setFont("helvetica","normal");
+doc.setFontSize(8);
+doc.text("Cálculo por tipo: estoque inicial + entradas − estoque final.",14,y+2);
+y+=6;
+
+doc.autoTable({
+startY:y,
+head:[["Categoria","Produto","Tipo","Saída calculada"]],
+body:linhasVendas.length?linhasVendas:[["—","Nenhuma saída positiva identificada","—","0"]],
+theme:"grid",
+margin:{left:10,right:10},
+styles:{
+font:"helvetica",
+fontSize:7,
+cellPadding:1.8,
+textColor:[245,245,245],
+fillColor:[20,20,20],
+lineColor:[80,80,80],
+lineWidth:.15
+},
+headStyles:{
+fillColor:[10,45,60],
+textColor:[22,207,255],
+fontStyle:"bold"
+},
+columnStyles:{
+0:{cellWidth:42},
+1:{cellWidth:76},
+2:{cellWidth:30},
+3:{cellWidth:42}
+}
+});
+
 const nome="Relatorio_"+loja.replace(/\s+/g,"_")+"_"+turno.replace(/\s+/g,"_")+"_"+dataLocal()+".pdf";
+
 doc.save(nome);
 alert("Relatório final gerado! Confira as saídas estimadas e envie o PDF ao grupo da equipe.");
 }
-document.getElementById("loja").addEventListener("change",()=>{if(document.getElementById("etapa").value==="final")carregarInicial()});
-document.getElementById("turno").addEventListener("change",()=>{if(document.getElementById("etapa").value==="final")carregarInicial()});
+
+document.getElementById("loja").addEventListener("change",()=>{
+if(document.getElementById("etapa").value==="final")carregarInicial();
+});
+
+document.getElementById("turno").addEventListener("change",()=>{
+if(document.getElementById("etapa").value==="final")carregarInicial();
+});
+
 mudarEtapa();
 </script>
 </body>
