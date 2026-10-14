@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adega Viva La Vida 24H</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root {
+  --red:#ff3038;
+  --yellow:#ffd21f;
+  --blue:#16cfff;
+  --bg:#080808;
+  --panel:#151515;
+  --muted:#aaa;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:#fff;
+  font-family:Arial,Helvetica,sans-serif;
+}
+header{
+  text-align:center;padding:25px 14px;
+  background:linear-gradient(180deg,#190606,#080808);
+  border-bottom:2px solid var(--yellow);
+}
+.logo{
+  color:var(--yellow);font-weight:900;
+  font-size:clamp(28px,7vw,48px);
+  text-shadow:0 0 12px #ff9d00,0 0 28px #ff3038;
+}
+.subtitle{
+  color:var(--red);font-size:clamp(16px,4vw,25px);
+  letter-spacing:3px;font-weight:bold;
+  text-shadow:0 0 12px var(--red);
+}
+.hours{color:var(--blue);font-size:25px;font-weight:bold}
+main{max-width:1100px;margin:auto;padding:16px}
+.panel{
+  background:var(--panel);border:1px solid #343434;
+  border-radius:14px;padding:17px;margin-bottom:18px;
+}
+h2{color:var(--yellow);font-size:20px;margin-top:0}
+h3{color:var(--blue);font-size:17px}
+label{display:block;font-size:14px;color:#ddd;margin-bottom:6px}
+input,select{
+  width:100%;padding:12px;border-radius:8px;
+  background:#090909;color:white;border:1px solid #555;
+  font-size:16px;min-width:0;
+}
+.field{margin-bottom:14px}
+.grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+button{
+  cursor:pointer;border:0;border-radius:9px;
+  padding:13px 16px;font-weight:bold;font-size:15px;
+}
+.primary{
+  background:var(--yellow);color:#111;width:100%;
+  box-shadow:0 0 12px #ffbd1640;
+}
+.secondary{background:#252525;color:white;border:1px solid #555}
+.category-title{
+  color:var(--yellow);border-bottom:1px solid #454545;
+  padding-bottom:9px;margin-top:25px;
+}
+.product{
+  border:1px solid #333;border-radius:10px;
+  padding:12px;margin:10px 0;background:#101010;
+}
+.product-name{font-weight:bold;margin-bottom:10px}
+.product-fields{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+}
+.product-fields label{font-size:12px;color:#bbb}
+.product-fields input{padding:10px}
+.hint{color:var(--muted);font-size:13px;line-height:1.5}
+.badge{
+  display:inline-block;padding:5px 8px;border-radius:6px;
+  font-size:12px;font-weight:bold;margin-top:9px;
+}
+.urgent{background:#4b1114;color:#ff777d}
+.low{background:#493a08;color:#ffe46d}
+.ok{background:#103a26;color:#7bffb0}
+.summary{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px
+}
+.summary div{
+  border:1px solid #343434;border-radius:9px;padding:12px;
+  background:#101010;text-align:center
+}
+.summary strong{display:block;font-size:24px;margin-top:6px}
+.red{color:var(--red)} .yellow{color:var(--yellow)} .green{color:#63f59a}
+footer{text-align:center;color:#777;font-size:12px;padding:20px}
+@media(max-width:520px){
+  .grid{grid-template-columns:1fr}
+  .product-fields{gap:5px}
+  .product-fields input{padding:9px 5px}
+  .product-fields label{font-size:11px}
+  main{padding:10px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">ADEGA</div>
+  <div class="subtitle">VIVA LA VIDA</div>
+  <div class="hours">24H</div>
+  <p>CONTROLE DE ESTOQUE</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Identificação da contagem</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="loja">Loja *</label>
+        <select id="loja" required>
+          <option value="">Selecione a loja</option>
+          <option>Jardim Marilena</option>
+          <option>Malvinas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="turno">Turno *</label>
+        <select id="turno" required>
+          <option value="">Selecione o turno</option>
+          <option>Manhã</option>
+          <option>Tarde</option>
+          <option>Madrugada</option>
+          <option>Troca de turno</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="colaborador">Nome do colaborador *</label>
+      <input id="colaborador" placeholder="Digite seu nome completo" required>
+    </div>
+    <p class="hint">Estoque mínimo padrão: 10 unidades por produto. Produtos sem quantidade preenchida serão considerados zerados, conforme a regra definida.</p>
+  </section>
+
+  <section class="panel">
+    <h2>📦 Contagem do estoque</h2>
+    <div class="field">
+      <label for="busca">Buscar produto</label>
+      <input id="busca" placeholder="Digite o nome do produto..." oninput="filtrarProdutos()">
+    </div>
+    <div id="produtos"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Resumo da conferência</h2>
+    <div class="summary">
+      <div><span class="red">Urgente</span><strong id="nUrgente">0</strong></div>
+      <div><span class="yellow">Estoque baixo</span><strong id="nBaixo">0</strong></div>
+      <div><span class="green">Estoque OK</span><strong id="nOk">0</strong></div>
+    </div>
+    <p class="hint">Urgente: zero. Baixo: de 1 a 9. OK: 10 ou mais. A classificação soma fechadas, abertas e avulsas informadas.</p>
+    <button class="primary" style="margin-top:18px" onclick="finalizar()">FINALIZAR CONTAGEM E BAIXAR PDF</button>
+    <p class="hint">O PDF será baixado neste dispositivo. Depois, você poderá anexá-lo ao grupo da equipe.</p>
+  </section>
+</main>
+<footer>ADEGA VIVA LA VIDA 24H • Controle de estoque</footer>
+
+<script>
+const categorias = {
+"Gelo":[
+"Gelo tropical","Gelo melancia","Gelo coco","Gelo de uva",
+"Gelo de maçã verde","Gelo busca brisa","Gelo pitaya",
+"Gelo de água","Gelo de pêssego","Gelo de morango"],
+"Doces":[
+"Fofura","Pururuca","Bala","Biscoito","Chiclete Poosh","Miojo",
+"Chiclete 7 Belo","Chiclete de 0,20","Bolinho","Pirulito de 0,50",
+"Pirulito de 0,25","Gibi","Chiclete Big Big","Paçocas",
+"Doce de chocolate","Doce de coco","Cocada","Freegells verde","Freegells preto"],
+"Sedas e acessórios":[
+"Seda pequena","Seda grande","Piteira grande","Piteira pequena",
+"Isqueiro","Bic original","Tesoura"],
+"Tabacaria":[
+"Eight","Hotmans azul","Hotmans vermelho","Lucky Strike","Dunhill",
+"Carvão","Essência","Alumínio","Tabaco"],
+"Limpeza":[
+"Bombril","Cândida","Desinfetante","Detergente"],
+"Descartáveis":[
+"Copo 700ml","Copo 200ml","Tampa","Canudo","Sacola","Saco de lixo"],
+"Energéticos":[
+"Energético tradicional","Energético melancia","Energético coco/açaí",
+"Energético tropical","Energético pêssego e morango",
+"Energético de Royale","Energético de maçã verde","Red Bull tradicional",
+"Red Bull tropical","Red melancia","Monster","Red Bull verde"],
+"Cantinho do Vale":["Draft","Pérgola"],
+"Whisky / Destilados":[
+"Red Label","Ballantines","Cavalo Branco","Beefeater tradicional",
+"Beefeater Pink","Jack Daniels tradicional","Jack maçã","Jack canela",
+"Circo","Cockaland","Passaporte","Chanceler","Askov vermelha",
+"Askov maracujá","Askov azul","Askov limão","Draft"],
+"Cachaças":[
+"Velho Barreiro","51","Pitu","Pitu lata","Velho lata","Para Tudo",
+"Paisano","São João","Sinar","Cariri","Caranguejo","Corote",
+"Presidente","Donus","Dreah","Busca brisa","Brisa mágica","Praianinha"],
+"Gin":[
+"Gin melancia","Gin maçã verde","Gin Royale","Gin tropical",
+"Gin pêssego/morango","Gin morango","Gin tradicional","Gin coco/açaí",
+"Gin Kairos tradicional","Gin Kairos tropical","Gin Kairos melancia",
+"Gin Kairos Royale","Gin Stroke"],
+"Cervejas":[
+"Heineken","Amstel","Original com 8","Original com 15","Budweiser",
+"Império","Skol","Brahma","Itaipava","Budweiser long neck",
+"Heineken long neck","Ice limão","Ice maracujá lata","Ice limão lata",
+"Ice fruta mix vermelha","Ice kiwi","Ice amarelo"],
+"Refrigerantes / Bebidas":[
+"Coca-Cola 2L","Coca-Cola 350ml","Coca-Cola 200ml","Sprite lata",
+"Sukita","Convenção Frutaina","Convenção guaraná","Convenção laranja",
+"Convenção limão","Convenção uva","Água 500ml","Sukita 2L",
+"Fanta laranja","Fanta uva","Refrigerante festa 2L","Suco Xtapa",
+"Tubaína 200ml"],
+"Outros":[
+"Limão","Açúcar","Maracujá","Morango","Guaraviton","Suco caixinha"]
+};
+
+const area = document.getElementById("produtos");
+let contador = 0;
+for (const [categoria, lista] of Object.entries(categorias)) {
+  const h = document.createElement("h3");
+  h.className = "category-title";
+  h.textContent = categoria;
+  area.appendChild(h);
+  lista.forEach(nome => {
+    const id = "p" + (++contador);
+    const card = document.createElement("div");
+    card.className = "product";
+    card.dataset.nome = nome.toLocaleLowerCase("pt-BR");
+    card.dataset.categoria = categoria;
+    card.innerHTML = `
+      <div class="product-name">${nome}</div>
+      <div class="product-fields">
+        <div><label for="${id}f">Fechadas</label><input id="${id}f" type="number" min="0" step="1" value="0" oninput="atualizarResumo()"></div>
+        <div><label for="${id}a">Abertas</label><input id="${id}a" type="number" min="0" step="1" value="0" oninput="atualizarResumo()"></div>
+        <div><label for="${id}v">Avulsas</label><input id="${id}v" type="number" min="0" step="1" value="0" oninput="atualizarResumo()"></div>
+      </div>
+      <div class="badge">Total: <span class="total">0</span> • Mínimo: 10</div>`;
+    card.dataset.id = id;
+    card.dataset.produto = nome;
+    area.appendChild(card);
+  });
+}
+
+function quantidade(card){
+  const id = card.dataset.id;
+  return ["f","a","v"].reduce((s,suf) => {
+    const el = document.getElementById(id+suf);
+    return s + Math.max(0, Number(el.value) || 0);
+  },0);
+}
+function status(q){
+  if(q === 0) return "urgente";
+  if(q < 10) return "baixo";
+  return "ok";
+}
+function atualizarResumo(){
+  let urgente=0, baixo=0, ok=0;
+  document.querySelectorAll(".product").forEach(card=>{
+    const q=quantidade(card);
+    card.querySelector(".total").textContent=q;
+    const s=status(q);
+    const badge=card.querySelector(".badge");
+    badge.className="badge "+(s==="urgente"?"urgent":s==="baixo"?"low":"ok");
+    badge.firstChild.textContent =
+      (s==="urgente"?"Reposição urgente":s==="baixo"?"Estoque baixo":"Estoque OK")+" • Total: ";
+    if(s==="urgente") urgente++;
+    else if(s==="baixo") baixo++;
+    else ok++;
+  });
+  document.getElementById("nUrgente").textContent=urgente;
+  document.getElementById("nBaixo").textContent=baixo;
+  document.getElementById("nOk").textContent=ok;
+}
+function filtrarProdutos(){
+  const termo=document.getElementById("busca").value.trim().toLocaleLowerCase("pt-BR");
+  document.querySelectorAll(".product").forEach(card=>{
+    card.style.display=card.dataset.nome.includes(termo)?"":"none";
+  });
+  document.querySelectorAll(".category-title").forEach(h=>{
+    let next=h.nextElementSibling, tem=false;
+    while(next && !next.classList.contains("category-title")){
+      if(next.classList.contains("product") && next.style.display!=="none") tem=true;
+      next=next.nextElementSibling;
+    }
+    h.style.display=tem?"":"none";
+  });
+}
+function finalizar(){
+  const loja=document.getElementById("loja").value;
+  const turno=document.getElementById("turno").value;
+  const colaborador=document.getElementById("colaborador").value.trim();
+  if(!loja||!turno||!colaborador){
+    alert("Preencha a loja, o turno e o nome do colaborador antes de finalizar.");
+    return;
+  }
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert("Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.");
+    return;
+  }
+  const cards=[...document.querySelectorAll(".product")];
+  const grupos=[
+    {nome:"1. REPOSIÇÃO URGENTE",tipo:"urgente"},
+    {nome:"2. ESTOQUE BAIXO",tipo:"baixo"},
+    {nome:"3. ESTOQUE OK",tipo:"ok"}
+  ];
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  const data=new Date();
+  const dataTexto=data.toLocaleDateString("pt-BR")+" às "+data.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  doc.setFillColor(8,8,8);doc.rect(0,0,210,297,"F");
+  doc.setTextColor(255,210,31);doc.setFont("helvetica","bold");
+  doc.setFontSize(21);doc.text("ADEGA VIVA LA VIDA 24H",105,15,{align:"center"});
+  doc.setTextColor(255,255,255);doc.setFontSize(10);
+  doc.text("RELATÓRIO DE CONTAGEM DE ESTOQUE",105,22,{align:"center"});
+  doc.setFont("helvetica","normal");
+  doc.text("Loja: "+loja,14,31);
+  doc.text("Turno: "+turno,14,37);
+  doc.text("Colaborador: "+colaborador,14,43);
+  doc.text("Data: "+dataTexto,14,49);
+  let y=56;
+  grupos.forEach(grupo=>{
+    const linhas=cards.filter(card=>status(quantidade(card))===grupo.tipo)
+      .map(card=>[
+        card.dataset.categoria,card.dataset.produto,
+        document.getElementById(card.dataset.id+"f").value || "0",
+        document.getElementById(card.dataset.id+"a").value || "0",
+        document.getElementById(card.dataset.id+"v").value || "0",
+        String(quantidade(card))
+      ]);
+    doc.setTextColor(255,210,31);doc.setFont("helvetica","bold");doc.setFontSize(12);
+    if(y>255){doc.addPage();doc.setFillColor(8,8,8);doc.rect(0,0,210,297,"F");y=15;}
+    doc.text(grupo.nome,14,y);y+=3;
+    doc.autoTable({
+      startY:y,head:[["Categoria","Produto","Fech.","Abert.","Avuls.","Total"]],
+      body:linhas.length?linhas:[["—","Nenhum produto","—","—","—","—"]],
+      theme:"grid",margin:{left:14,right:14},
+      styles:{font:"helvetica",fontSize:7,cellPadding:1.8,textColor:[245,245,245],fillColor:[20,20,20],lineColor:[80,80,80],lineWidth:0.15},
+      headStyles:{fillColor:[50,20,20],textColor:[255,210,31],fontStyle:"bold"},
+      columnStyles:{0:{cellWidth:35},1:{cellWidth:62},2:{cellWidth:17},3:{cellWidth:17},4:{cellWidth:17},5:{cellWidth:20}},
+      didDrawPage:function(){ }
+    });
+    y=doc.lastAutoTable.finalY+9;
+  });
+  const nome="Estoque_"+loja.replace(/\s+/g,"_")+"_"+turno.replace(/\s+/g,"_")+"_"+data.toISOString().slice(0,10)+".pdf";
+  doc.save(nome);
+  alert("Contagem finalizada! O PDF foi preparado para download. Agora você pode enviá-lo ao grupo da equipe.");
+}
+atualizarResumo();
+</script>
+</body>
+</html>
